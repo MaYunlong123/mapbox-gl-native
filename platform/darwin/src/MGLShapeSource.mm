@@ -209,12 +209,12 @@ mbgl::style::GeoJSONOptions MGLGeoJSONOptionsFromDictionary(NSDictionary<MGLShap
 
     auto geoJSON = [cluster geoJSONObject];
     
-    if (!geoJSON.is<mbgl::Feature>()) {
+    if (!geoJSON.is<mbgl::FeatureGeoJSON>()) {
         MGLAssert(0, @"cluster geoJSON object is not a feature.");
         return extensionValue;
     }
     
-    auto clusterFeature = geoJSON.get<mbgl::Feature>();
+    auto clusterFeature = geoJSON.get<mbgl::FeatureGeoJSON>();
     
     extensionValue = self.mapView.renderer->queryFeatureExtensions(self.rawSource->getID(),
                                                                    clusterFeature,
@@ -240,7 +240,7 @@ mbgl::style::GeoJSONOptions MGLGeoJSONOptionsFromDictionary(NSDictionary<MGLShap
         return @[];
     }
     
-    std::vector<mbgl::Feature> leaves = featureExtension->get<mbgl::FeatureCollection>();
+    std::vector<mbgl::FeatureGeoJSON> leaves = featureExtension->get<mbgl::FeatureCollection>();
     return MGLFeaturesFromMBGLFeatures(leaves);
 }
 
@@ -255,7 +255,7 @@ mbgl::style::GeoJSONOptions MGLGeoJSONOptionsFromDictionary(NSDictionary<MGLShap
         return @[];
     }
     
-    std::vector<mbgl::Feature> leaves = featureExtension->get<mbgl::FeatureCollection>();
+    std::vector<mbgl::FeatureGeoJSON> leaves = featureExtension->get<mbgl::FeatureCollection>();
     return MGLFeaturesFromMBGLFeatures(leaves);
 }
 

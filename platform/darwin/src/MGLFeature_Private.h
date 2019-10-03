@@ -16,10 +16,17 @@ MGL_EXPORT
 NSArray<MGLShape <MGLFeature> *> *MGLFeaturesFromMBGLFeatures(const std::vector<mbgl::Feature> &features);
 
 /**
- Returns an `MGLFeature` object converted from the given mbgl::Feature
+ Returns an array of `MGLFeature` objects converted from the given vector of
+ vector tile features.
  */
 MGL_EXPORT
-id <MGLFeature> MGLFeatureFromMBGLFeature(const mbgl::Feature &feature);
+NSArray<MGLShape <MGLFeature> *> *MGLFeaturesFromMBGLFeatures(const std::vector<mbgl::FeatureGeoJSON> &features);
+
+/**
+ Returns an `MGLFeature` object converted from the given mbgl::FeatureGeoJSON
+ */
+MGL_EXPORT
+id <MGLFeature> MGLFeatureFromMBGLFeature(const mbgl::FeatureGeoJSON &feature);
 
 /**
  Returns an `MGLShape` representing the given geojson. The shape can be
@@ -28,11 +35,11 @@ id <MGLFeature> MGLFeatureFromMBGLFeature(const mbgl::Feature &feature);
 MGLShape* MGLShapeFromGeoJSON(const mapbox::geojson::geojson &geojson);
 
 /**
- Takes an `mbgl::Feature` object, an identifer, and attributes dictionary and
+ Takes an `mbgl::FeatureGeoJSON` object, an identifer, and attributes dictionary and
  returns the feature object with converted `mbgl::FeatureIdentifier` and
  `mbgl::PropertyMap` properties.
  */
-mbgl::Feature mbglFeature(mbgl::Feature feature, id identifier, NSDictionary * attributes);
+mbgl::FeatureGeoJSON mbglFeature(mbgl::FeatureGeoJSON feature, id identifier, NSDictionary * attributes);
 
 /**
  Returns an `NSDictionary` representation of an `MGLFeature`.

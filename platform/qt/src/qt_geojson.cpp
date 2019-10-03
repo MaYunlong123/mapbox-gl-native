@@ -121,7 +121,7 @@ mbgl::FeatureIdentifier asMapboxGLFeatureIdentifier(const QVariant &id) {
     }
 }
 
-mbgl::Feature asMapboxGLFeature(const QMapbox::Feature &feature) {
+mbgl::FeatureGeoJSON asMapboxGLFeature(const QMapbox::Feature &feature) {
     mbgl::PropertyMap properties;
     properties.reserve(feature.properties.size());
     for (auto it = feature.properties.constBegin(); it != feature.properties.constEnd(); ++it) {

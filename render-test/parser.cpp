@@ -232,7 +232,7 @@ std::string toJSON(const std::vector<mbgl::Feature>& features, unsigned indent, 
     writer.SetIndent(' ', indent);
     writer.StartArray();
     for (size_t i = 0; i < features.size(); ++i) {
-        auto result = mapbox::geojson::convert(features[i], allocator);
+        auto result = mapbox::geojson::convert(static_cast<mapbox::geojson::feature>(features[i]), allocator);
 
         result.AddMember("source", features[i].source, allocator);
         if (!features[i].sourceLayer.empty()) {
