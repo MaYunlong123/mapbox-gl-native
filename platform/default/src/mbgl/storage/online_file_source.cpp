@@ -31,6 +31,8 @@ namespace mbgl {
 constexpr const char* ACCESS_TOKEN_KEY = "access-token";
 constexpr const char* API_BASE_URL_KEY = "api-base-url";
 constexpr const char* MAX_CONCURRENT_REQUESTS_KEY = "max-concurrent-requests";
+// For testing only
+constexpr const char* ONLINE_STATUS_KEY = "online-status";
 
 class OnlineFileSourceThread;
 
@@ -609,6 +611,11 @@ void OnlineFileSource::setProperty(const std::string& key, const mapbox::base::V
         impl->setAPIBaseURL(value);
     } else if (key == MAX_CONCURRENT_REQUESTS_KEY) {
         impl->setMaximumConcurrentRequests(value);
+    } else if(key == ONLINE_STATUS_KEY) {
+        // For testing only
+        if (auto* boolValue = value.getBool()) {
+            impl->setOnlineStatus(*boolValue);
+        }
     } else {
         std::string message = "Resource provider does not support property " + key;
         Log::Error(Event::General, message.c_str());
@@ -630,11 +637,6 @@ mapbox::base::Value OnlineFileSource::getProperty(const std::string& key) const 
 
 void OnlineFileSource::setResourceTransform(optional<ActorRef<ResourceTransform>> transform) {
     impl->setResourceTransform(std::move(transform));
-}
-
-// For testing only:
-void OnlineFileSource::setOnlineStatus(bool status) {
-    impl->setOnlineStatus(status);
 }
 
 } // namespace mbgl

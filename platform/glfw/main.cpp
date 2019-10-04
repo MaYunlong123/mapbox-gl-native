@@ -6,7 +6,6 @@
 #include <mbgl/renderer/renderer.hpp>
 #include <mbgl/storage/database_file_source.hpp>
 #include <mbgl/storage/file_source_manager.hpp>
-#include <mbgl/storage/online_file_source.hpp>
 #include <mbgl/style/style.hpp>
 #include <mbgl/util/default_styles.hpp>
 #include <mbgl/util/logging.hpp>
@@ -106,11 +105,10 @@ int main(int argc, char *argv[]) {
     mbgl::ResourceOptions resourceOptions;
     resourceOptions.withCachePath(cacheDB).withAccessToken(token);
 
-    auto onlineFileSource = std::static_pointer_cast<mbgl::OnlineFileSource>(
-        mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::Network, resourceOptions));
+    auto onlineFileSource = mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::Network, resourceOptions);
     if (!settings.online) {
         if (onlineFileSource) {
-            onlineFileSource->setOnlineStatus(false);
+            onlineFileSource->setProperty("online-status", false);
             mbgl::Log::Warning(mbgl::Event::Setup, "Application is offline. Press `O` to toggle online status.");
         } else {
             mbgl::Log::Warning(mbgl::Event::Setup,
@@ -143,7 +141,7 @@ int main(int argc, char *argv[]) {
             return;
         }
         settings.online = !settings.online;
-        onlineFileSource->setOnlineStatus(settings.online);
+        onlineFileSource->setProperty("online-status", settings.online);
         mbgl::Log::Info(mbgl::Event::Setup, "Application is %s. Press `O` to toggle online status.", settings.online ? "online" : "offline");
     });
 
