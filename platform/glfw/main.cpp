@@ -3,13 +3,15 @@
 #include "settings_json.hpp"
 
 #include <mbgl/gfx/backend.hpp>
+#include <mbgl/renderer/renderer.hpp>
+#include <mbgl/storage/database_file_source.hpp>
+#include <mbgl/storage/file_source_manager.hpp>
+#include <mbgl/storage/online_file_source.hpp>
+#include <mbgl/style/style.hpp>
 #include <mbgl/util/default_styles.hpp>
 #include <mbgl/util/logging.hpp>
 #include <mbgl/util/platform.hpp>
 #include <mbgl/util/string.hpp>
-#include <mbgl/storage/default_file_source.hpp>
-#include <mbgl/style/style.hpp>
-#include <mbgl/renderer/renderer.hpp>
 
 #include <args.hxx>
 
@@ -104,10 +106,16 @@ int main(int argc, char *argv[]) {
     mbgl::ResourceOptions resourceOptions;
     resourceOptions.withCachePath(cacheDB).withAccessToken(token);
 
-    auto fileSource = std::static_pointer_cast<mbgl::DefaultFileSource>(mbgl::FileSource::getSharedFileSource(resourceOptions));
+    auto onlineFileSource = std::static_pointer_cast<mbgl::OnlineFileSource>(
+        mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::Network, resourceOptions));
     if (!settings.online) {
-        fileSource->setOnlineStatus(false);
-        mbgl::Log::Warning(mbgl::Event::Setup, "Application is offline. Press `O` to toggle online status.");
+        if (onlineFileSource) {
+            onlineFileSource->setOnlineStatus(false);
+            mbgl::Log::Warning(mbgl::Event::Setup, "Application is offline. Press `O` to toggle online status.");
+        } else {
+            mbgl::Log::Warning(mbgl::Event::Setup,
+                               "Network resource provider is not available, only local requests are supported.");
+        }
     }
 
     GLFWRendererFrontend rendererFrontend { std::make_unique<mbgl::Renderer>(view->getRendererBackend(), view->getPixelRatio()), *view };
@@ -128,9 +136,14 @@ int main(int argc, char *argv[]) {
                    .withPitch(settings.pitch));
     map.setDebug(mbgl::MapDebugOptions(settings.debug));
 
-    view->setOnlineStatusCallback([&settings, fileSource]() {
+    view->setOnlineStatusCallback([&settings, onlineFileSource]() {
+        if (!onlineFileSource) {
+            mbgl::Log::Warning(mbgl::Event::Setup,
+                               "Cannot change online status. Network resource provider is not available.");
+            return;
+        }
         settings.online = !settings.online;
-        fileSource->setOnlineStatus(settings.online);
+        onlineFileSource->setOnlineStatus(settings.online);
         mbgl::Log::Info(mbgl::Event::Setup, "Application is %s. Press `O` to toggle online status.", settings.online ? "online" : "offline");
     });
 
@@ -148,20 +161,26 @@ int main(int argc, char *argv[]) {
         mbgl::Log::Info(mbgl::Event::Setup, "Changed style to: %s", newStyle.name);
     });
 
-    view->setPauseResumeCallback([fileSource] () {
+    // Resource loader controls top-level request processing and can resume / pause all managed sources simultaneously.
+    auto resourceLoader =
+        mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::ResourceLoader, resourceOptions);
+    view->setPauseResumeCallback([resourceLoader]() {
         static bool isPaused = false;
 
         if (isPaused) {
-            fileSource->resume();
+            resourceLoader->resume();
         } else {
-            fileSource->pause();
+            resourceLoader->pause();
         }
 
         isPaused = !isPaused;
     });
 
-    view->setResetCacheCallback([fileSource] () {
-        fileSource->resetDatabase([](std::exception_ptr ex) {
+    // Database file source.
+    auto databaseFileSource = std::static_pointer_cast<mbgl::DatabaseFileSource>(
+        mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::Database, resourceOptions));
+    view->setResetCacheCallback([databaseFileSource]() {
+        databaseFileSource->resetDatabase([](std::exception_ptr ex) {
             if (ex) {
                 mbgl::Log::Error(mbgl::Event::Database, "Failed to reset cache:: %s", mbgl::util::toString(ex).c_str());
             }

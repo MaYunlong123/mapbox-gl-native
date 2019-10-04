@@ -2,52 +2,58 @@
 #include <mbgl/storage/http_file_source.hpp>
 #include <mbgl/storage/network_status.hpp>
 
+#include <mbgl/storage/file_source_request.hpp>
 #include <mbgl/storage/resource_transform.hpp>
 #include <mbgl/storage/response.hpp>
 #include <mbgl/util/logging.hpp>
 
 #include <mbgl/actor/mailbox.hpp>
-#include <mbgl/util/constants.hpp>
-#include <mbgl/util/mapbox.hpp>
-#include <mbgl/util/exception.hpp>
-#include <mbgl/util/chrono.hpp>
 #include <mbgl/util/async_task.hpp>
+#include <mbgl/util/chrono.hpp>
+#include <mbgl/util/constants.hpp>
+#include <mbgl/util/exception.hpp>
+#include <mbgl/util/http_timeout.hpp>
+#include <mbgl/util/mapbox.hpp>
 #include <mbgl/util/noncopyable.hpp>
 #include <mbgl/util/run_loop.hpp>
+#include <mbgl/util/thread.hpp>
 #include <mbgl/util/timer.hpp>
-#include <mbgl/util/http_timeout.hpp>
 
 #include <algorithm>
 #include <cassert>
 #include <list>
-#include <unordered_set>
+#include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace mbgl {
 
 static uint32_t DEFAULT_MAXIMUM_CONCURRENT_REQUESTS = 20;
 
-class OnlineFileRequest : public AsyncRequest {
-public:
+class OnlineFileSourceThread;
+
+struct OnlineFileRequest {
     using Callback = std::function<void (Response)>;
 
-    OnlineFileRequest(Resource, Callback, OnlineFileSource::Impl&);
-    ~OnlineFileRequest() override;
+    OnlineFileRequest(Resource resource_, Callback callback_, OnlineFileSourceThread& impl_);
+    ~OnlineFileRequest();
 
     void networkIsReachableAgain();
     void schedule();
     void schedule(optional<Timestamp> expires);
     void completed(Response);
 
-    void setTransformedURL(const std::string&& url);
+    void setTransformedURL(const std::string& url);
     ActorRef<OnlineFileRequest> actor();
+    void onCancel(std::function<void()>);
 
-    OnlineFileSource::Impl& impl;
+    OnlineFileSourceThread& impl;
     Resource resource;
     std::unique_ptr<AsyncRequest> request;
     util::Timer timer;
     Callback callback;
 
+    std::function<void()> cancelCallback = nullptr;
     std::shared_ptr<Mailbox> mailbox;
 
     // Counts the number of times a response was already expired when received. We're using
@@ -62,15 +68,25 @@ public:
     optional<Timestamp> retryAfter;
 };
 
-class OnlineFileSource::Impl {
+class OnlineFileSourceThread {
 public:
-    Impl() {
+    OnlineFileSourceThread() {
         NetworkStatus::Subscribe(&reachability);
         setMaximumConcurrentRequests(DEFAULT_MAXIMUM_CONCURRENT_REQUESTS);
     }
 
-    ~Impl() {
-        NetworkStatus::Unsubscribe(&reachability);
+    ~OnlineFileSourceThread() { NetworkStatus::Unsubscribe(&reachability); }
+
+    void request(AsyncRequest* req, Resource resource, ActorRef<FileSourceRequest> ref) {
+        auto callback = [ref](const Response& res) { ref.invoke(&FileSourceRequest::setResponse, res); };
+        tasks[req] = std::make_unique<OnlineFileRequest>(std::move(resource), std::move(callback), *this);
+    }
+
+    void cancel(AsyncRequest* req) {
+        auto it = tasks.find(req);
+        assert(it != tasks.end());
+        remove(it->second.get());
+        tasks.erase(it);
     }
 
     void add(OnlineFileRequest* request) {
@@ -81,7 +97,7 @@ public:
             resourceTransform->invoke(&ResourceTransform::transform,
                                       request->resource.kind,
                                       std::move(request->resource.url),
-                                      [ref = request->actor()](const std::string&& url) {
+                                      [ref = request->actor()](const std::string& url) {
                                           ref.invoke(&OnlineFileRequest::setTransformedURL, url);
                                       });
         } else {
@@ -132,7 +148,6 @@ public:
                                                                "Online connectivity is disabled.");
             callback(response);
         }
-
     }
 
     void activatePendingRequest() {
@@ -152,11 +167,11 @@ public:
         return activeRequests.find(request) != activeRequests.end();
     }
 
-    void setResourceTransform(optional<ActorRef<ResourceTransform>>&& transform) {
+    void setResourceTransform(optional<ActorRef<ResourceTransform>> transform) {
         resourceTransform = std::move(transform);
     }
 
-    void setOnlineStatus(const bool status) {
+    void setOnlineStatus(bool status) {
         online = status;
         networkIsReachableAgain();
     }
@@ -169,7 +184,14 @@ public:
         maximumConcurrentRequests = maximumConcurrentRequests_;
     }
 
+    void setAPIBaseURL(const std::string& t) { apiBaseURL = t; }
+    std::string getAPIBaseURL() const { return apiBaseURL; }
+
+    void setAccessToken(const std::string& t) { accessToken = t; }
+    std::string getAccessToken() const { return accessToken; }
+
 private:
+    friend struct OnlineFileRequest;
 
     void networkIsReachableAgain() {
         // Notify regular priority requests.
@@ -229,7 +251,6 @@ private:
             }
         }
 
-
         optional<OnlineFileRequest*> pop() {
             if (queue.empty()) {
                 return optional<OnlineFileRequest*>();
@@ -272,7 +293,81 @@ private:
     bool online = true;
     uint32_t maximumConcurrentRequests;
     HTTPFileSource httpFileSource;
-    util::AsyncTask reachability { std::bind(&Impl::networkIsReachableAgain, this) };
+    util::AsyncTask reachability{std::bind(&OnlineFileSourceThread::networkIsReachableAgain, this)};
+    std::string accessToken;
+    std::string apiBaseURL = mbgl::util::API_BASE_URL;
+    std::map<AsyncRequest*, std::unique_ptr<OnlineFileRequest>> tasks;
+};
+
+class OnlineFileSource::Impl {
+public:
+    Impl() : thread(std::make_unique<util::Thread<OnlineFileSourceThread>>("OnlineFileSource")) {}
+
+    std::unique_ptr<AsyncRequest> request(Callback callback, Resource res) {
+        auto req = std::make_unique<FileSourceRequest>(std::move(callback));
+        req->onCancel(
+            [actorRef = thread->actor(), req = req.get()]() { actorRef.invoke(&OnlineFileSourceThread::cancel, req); });
+        thread->actor().invoke(&OnlineFileSourceThread::request, req.get(), std::move(res), req->actor());
+        return std::move(req);
+    }
+
+    void pause() { thread->pause(); }
+
+    void resume() { thread->resume(); }
+
+    void setResourceTransform(optional<ActorRef<ResourceTransform>> transform) {
+        thread->actor().invoke(&OnlineFileSourceThread::setResourceTransform, std::move(transform));
+    }
+
+    void setOnlineStatus(bool status) { thread->actor().invoke(&OnlineFileSourceThread::setOnlineStatus, status); }
+
+    void setAPIBaseURL(const std::string& baseURL) {
+        thread->actor().invoke(&OnlineFileSourceThread::setAPIBaseURL, baseURL);
+        {
+            std::lock_guard<std::mutex> lock(cachedBaseURLMutex);
+            cachedBaseURL = baseURL;
+        }
+    }
+
+    std::string getAPIBaseURL() const {
+        std::lock_guard<std::mutex> lock(cachedBaseURLMutex);
+        return cachedBaseURL;
+    }
+
+    void setMaximumConcurrentRequests(uint32_t maximumConcurrentRequests) {
+        thread->actor().invoke(&OnlineFileSourceThread::setMaximumConcurrentRequests, maximumConcurrentRequests);
+        {
+            std::lock_guard<std::mutex> lock(maximumConcurrentRequestsMutex);
+            cachedMaximumConcurrentRequests = maximumConcurrentRequests;
+        }
+    }
+
+    uint32_t getMaximumConcurrentRequests() const {
+        std::lock_guard<std::mutex> lock(maximumConcurrentRequestsMutex);
+        return cachedMaximumConcurrentRequests;
+    }
+
+    void setAccessToken(const std::string& accessToken) {
+        thread->actor().invoke(&OnlineFileSourceThread::setAccessToken, accessToken);
+        {
+            std::lock_guard<std::mutex> lock(cachedAccessTokenMutex);
+            cachedAccessToken = accessToken;
+        }
+    }
+
+    std::string getAccessToken() const {
+        std::lock_guard<std::mutex> lock(cachedAccessTokenMutex);
+        return cachedAccessToken;
+    }
+
+private:
+    mutable std::mutex cachedAccessTokenMutex;
+    std::string cachedAccessToken;
+    mutable std::mutex cachedBaseURLMutex;
+    std::string cachedBaseURL = mbgl::util::API_BASE_URL;
+    mutable std::mutex maximumConcurrentRequestsMutex;
+    uint32_t cachedMaximumConcurrentRequests = DEFAULT_MAXIMUM_CONCURRENT_REQUESTS;
+    const std::unique_ptr<util::Thread<OnlineFileSourceThread>> thread;
 };
 
 OnlineFileSource::OnlineFileSource()
@@ -290,38 +385,50 @@ std::unique_ptr<AsyncRequest> OnlineFileSource::request(const Resource& resource
         break;
 
     case Resource::Kind::Style:
-        res.url = mbgl::util::mapbox::normalizeStyleURL(apiBaseURL, resource.url, accessToken);
+        res.url = mbgl::util::mapbox::normalizeStyleURL(getAPIBaseURL(), resource.url, getAccessToken());
         break;
 
     case Resource::Kind::Source:
-        res.url = util::mapbox::normalizeSourceURL(apiBaseURL, resource.url, accessToken);
+        res.url = util::mapbox::normalizeSourceURL(getAPIBaseURL(), resource.url, getAccessToken());
         break;
 
     case Resource::Kind::Glyphs:
-        res.url = util::mapbox::normalizeGlyphsURL(apiBaseURL, resource.url, accessToken);
+        res.url = util::mapbox::normalizeGlyphsURL(getAPIBaseURL(), resource.url, getAccessToken());
         break;
 
     case Resource::Kind::SpriteImage:
     case Resource::Kind::SpriteJSON:
-        res.url = util::mapbox::normalizeSpriteURL(apiBaseURL, resource.url, accessToken);
+        res.url = util::mapbox::normalizeSpriteURL(getAPIBaseURL(), resource.url, getAccessToken());
         break;
 
     case Resource::Kind::Tile:
-        res.url = util::mapbox::normalizeTileURL(apiBaseURL, resource.url, accessToken);
+        res.url = util::mapbox::normalizeTileURL(getAPIBaseURL(), resource.url, getAccessToken());
         break;
     }
 
-    return std::make_unique<OnlineFileRequest>(std::move(res), std::move(callback), *impl);
+    return impl->request(std::move(callback), std::move(res));
 }
 
-void OnlineFileSource::setResourceTransform(optional<ActorRef<ResourceTransform>>&& transform) {
+bool OnlineFileSource::canRequest(const Resource& resource) const {
+    return resource.hasLoadingMethod(Resource::LoadingMethod::Network) &&
+           resource.url.rfind(mbgl::util::ASSET_PROTOCOL, 0) == std::string::npos &&
+           resource.url.rfind(mbgl::util::FILE_PROTOCOL, 0) == std::string::npos;
+}
+
+void OnlineFileSource::pause() {
+    impl->pause();
+}
+
+void OnlineFileSource::resume() {
+    impl->resume();
+}
+
+void OnlineFileSource::setResourceTransform(optional<ActorRef<ResourceTransform>> transform) {
     impl->setResourceTransform(std::move(transform));
 }
 
-OnlineFileRequest::OnlineFileRequest(Resource resource_, Callback callback_, OnlineFileSource::Impl& impl_)
-    : impl(impl_),
-      resource(std::move(resource_)),
-      callback(std::move(callback_)) {
+OnlineFileRequest::OnlineFileRequest(Resource resource_, Callback callback_, OnlineFileSourceThread& impl_)
+    : impl(impl_), resource(std::move(resource_)), callback(std::move(callback_)) {
     impl.add(this);
 }
 
@@ -335,7 +442,9 @@ void OnlineFileRequest::schedule() {
 }
 
 OnlineFileRequest::~OnlineFileRequest() {
-    impl.remove(this);
+    if (mailbox) {
+        mailbox->close();
+    }
 }
 
 Timestamp interpolateExpiration(const Timestamp& current,
@@ -467,7 +576,7 @@ void OnlineFileRequest::networkIsReachableAgain() {
     }
 }
 
-void OnlineFileRequest::setTransformedURL(const std::string&& url) {
+void OnlineFileRequest::setTransformedURL(const std::string& url) {
     resource.url = url;
     schedule();
 }
@@ -482,18 +591,37 @@ ActorRef<OnlineFileRequest> OnlineFileRequest::actor() {
     return ActorRef<OnlineFileRequest>(*this, mailbox);
 }
 
-void OnlineFileSource::setMaximumConcurrentRequests(uint32_t maximumConcurrentRequests_) {
-    impl->setMaximumConcurrentRequests(maximumConcurrentRequests_);
+void OnlineFileRequest::onCancel(std::function<void()> callback_) {
+    cancelCallback = std::move(callback_);
+}
+
+void OnlineFileSource::setMaximumConcurrentRequests(uint32_t maximumConcurrentRequests) {
+    impl->setMaximumConcurrentRequests(maximumConcurrentRequests);
 }
 
 uint32_t OnlineFileSource::getMaximumConcurrentRequests() const {
     return impl->getMaximumConcurrentRequests();
 }
 
+void OnlineFileSource::setAPIBaseURL(const std::string& baseURL) {
+    impl->setAPIBaseURL(baseURL);
+}
+
+std::string OnlineFileSource::getAPIBaseURL() const {
+    return impl->getAPIBaseURL();
+}
+
+void OnlineFileSource::setAccessToken(const std::string& accessToken) {
+    impl->setAccessToken(accessToken);
+}
+
+std::string OnlineFileSource::getAccessToken() const {
+    return impl->getAccessToken();
+}
 
 // For testing only:
 
-void OnlineFileSource::setOnlineStatus(const bool status) {
+void OnlineFileSource::setOnlineStatus(bool status) {
     impl->setOnlineStatus(status);
 }
 
