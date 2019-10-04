@@ -18,17 +18,8 @@ public:
     void pause() override;
     void resume() override;
 
-    // TODO: Move set/get APIs under generic prop methods:
-    // - void  FileSource::setProperty(key, value)
-    // - value FileSource::getProperty(key)
-    void setAPIBaseURL(const std::string&);
-    std::string getAPIBaseURL() const;
-
-    void setAccessToken(const std::string&);
-    std::string getAccessToken() const;
-
-    void setMaximumConcurrentRequests(uint32_t);
-    uint32_t getMaximumConcurrentRequests() const;
+    void setProperty(const std::string&, const mapbox::base::Value&) override;
+    mapbox::base::Value getProperty(const std::string&) const override;
 
     void setResourceTransform(optional<ActorRef<ResourceTransform>>);
 

@@ -12,7 +12,7 @@ namespace mbgl {
 
 class DatabaseFileSource::Impl {
 public:
-    Impl(std::shared_ptr<OnlineFileSource> onlineFileSource_, std::string cachePath)
+    Impl(std::shared_ptr<FileSource> onlineFileSource_, std::string cachePath)
         : db(std::make_unique<OfflineDatabase>(cachePath)), onlineFileSource(onlineFileSource_) {}
 
     void request(const Resource& resource, ActorRef<FileSourceRequest> req) {
@@ -125,14 +125,13 @@ private:
 
     std::unique_ptr<OfflineDatabase> db;
     std::unordered_map<int64_t, std::unique_ptr<OfflineDownload>> downloads;
-    std::shared_ptr<OnlineFileSource> onlineFileSource;
+    std::shared_ptr<FileSource> onlineFileSource;
 };
 
 DatabaseFileSource::DatabaseFileSource(const ResourceOptions& options)
     : impl(std::make_unique<util::Thread<Impl>>(
           "DatabaseFileSource",
-          std::static_pointer_cast<OnlineFileSource>(
-              FileSourceManager::get()->getFileSource(FileSourceType::Network, options)),
+          FileSourceManager::get()->getFileSource(FileSourceType::Network, options),
           options.cachePath())) {}
 
 DatabaseFileSource::~DatabaseFileSource() = default;

@@ -2,6 +2,8 @@
 
 #include <mbgl/storage/response.hpp>
 
+#include <mapbox/value.hpp>
+
 #include <functional>
 #include <memory>
 
@@ -49,9 +51,7 @@ public:
     // Cache-only requests are requests that aren't as urgent, but could be useful, e.g.
     // to cover part of the map while loading. The FileSource should only do cheap actions to
     // retrieve the data, e.g. load it from a cache, but not from the internet.
-    virtual bool supportsCacheOnlyRequests() const {
-        return false;
-    }
+    virtual bool supportsCacheOnlyRequests() const { return false; }
 
     // Checks whether a resource could be requested from this file source.
     virtual bool canRequest(const Resource&) const = 0;
@@ -71,6 +71,12 @@ public:
      * expired while the file source was paused.
      */
     virtual void resume() {}
+
+    /*
+     * Generic property setter / getter methods.
+     */
+    virtual void setProperty(const std::string&, const mapbox::base::Value&) {};
+    virtual mapbox::base::Value getProperty(const std::string&) const { return {}; };
 
 protected:
     FileSource() = default;

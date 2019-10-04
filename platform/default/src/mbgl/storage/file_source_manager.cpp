@@ -28,8 +28,8 @@ public:
 
         registerFileSourceFactory(FileSourceType::Network, [](const ResourceOptions& options) {
             auto networkSource = std::make_unique<OnlineFileSource>();
-            networkSource->setAccessToken(options.accessToken());
-            networkSource->setAPIBaseURL(options.baseURL());
+            networkSource->setProperty("access-token", options.accessToken());
+            networkSource->setProperty("api-base-url", options.baseURL());
             return networkSource;
         });
     }
