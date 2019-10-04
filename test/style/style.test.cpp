@@ -18,7 +18,7 @@ using namespace mbgl::style;
 TEST(Style, Properties) {
     util::RunLoop loop;
 
-    StubFileSource fileSource;
+    auto fileSource = std::make_shared<StubFileSource>();
     Style::Impl style { fileSource, 1.0 };
 
     style.loadJSON(R"STYLE({"name": "Test"})STYLE");
@@ -60,7 +60,7 @@ TEST(Style, Properties) {
 TEST(Style, DuplicateSource) {
     util::RunLoop loop;
 
-    StubFileSource fileSource;
+    auto fileSource = std::make_shared<StubFileSource>();
     Style::Impl style { fileSource, 1.0 };
 
     style.loadJSON(util::read_file("test/fixtures/resources/style-unused-sources.json"));
@@ -81,7 +81,7 @@ TEST(Style, RemoveSourceInUse) {
     auto log = new FixtureLogObserver();
     Log::setObserver(std::unique_ptr<Log::Observer>(log));
 
-    StubFileSource fileSource;
+    auto fileSource = std::make_shared<StubFileSource>();
     Style::Impl style { fileSource, 1.0 };
 
     style.loadJSON(util::read_file("test/fixtures/resources/style-unused-sources.json"));

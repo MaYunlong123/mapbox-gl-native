@@ -1,11 +1,12 @@
-#include <mbgl/test/util.hpp>
-#include <mbgl/storage/online_file_source.hpp>
 #include <mbgl/storage/network_status.hpp>
+#include <mbgl/storage/online_file_source.hpp>
+#include <mbgl/storage/resource.hpp>
+#include <mbgl/test/util.hpp>
 #include <mbgl/util/chrono.hpp>
-#include <mbgl/util/run_loop.hpp>
-#include <mbgl/util/timer.hpp>
-#include <mbgl/util/string.hpp>
 #include <mbgl/util/constants.hpp>
+#include <mbgl/util/run_loop.hpp>
+#include <mbgl/util/string.hpp>
+#include <mbgl/util/timer.hpp>
 
 #include <gtest/gtest.h>
 
@@ -416,14 +417,30 @@ TEST(OnlineFileSource, TEST_REQUIRES_SERVER(RateLimitDefault)) {
     loop.run();
 }
 
+TEST(OnlineFileSource, GetBaseURLAndAccessTokenWhilePaused) {
+    util::RunLoop loop;
+    OnlineFileSource fs;
+
+    fs.pause();
+
+    auto baseURL = "http://url";
+    auto accessToken = "access_token";
+
+    fs.setProperty("api-base-url", baseURL);
+    fs.setProperty("access-token", accessToken);
+
+    EXPECT_EQ(*fs.getProperty("api-base-url").getString(), baseURL);
+    EXPECT_EQ(*fs.getProperty("access-token").getString(), accessToken);
+}
+
 TEST(OnlineFileSource, ChangeAPIBaseURL){
     util::RunLoop loop;
     OnlineFileSource fs;
 
-    EXPECT_EQ(mbgl::util::API_BASE_URL, fs.getAPIBaseURL());
+    EXPECT_EQ(mbgl::util::API_BASE_URL, *fs.getProperty("api-base-url").getString());
     const std::string customURL = "test.domain";
-    fs.setAPIBaseURL(customURL);
-    EXPECT_EQ(customURL, fs.getAPIBaseURL());
+    fs.setProperty("api-base-url", customURL);
+    EXPECT_EQ(customURL, *fs.getProperty("api-base-url").getString());
 }
 
 
@@ -433,26 +450,27 @@ TEST(OnlineFileSource, TEST_REQUIRES_SERVER(LowHighPriorityRequests)) {
     std::size_t response_counter = 0;
     const std::size_t NUM_REQUESTS = 3;
 
-    fs.setMaximumConcurrentRequests(1);
-
+    fs.setProperty("max-concurrent-requests", 1u);
     NetworkStatus::Set(NetworkStatus::Status::Offline);
 
-    // requesting a low priority resource
-    Resource low_prio{ Resource::Unknown, "http://127.0.0.1:3000/load/1" };
-    low_prio.setPriority(Resource::Priority::Low);
-    std::unique_ptr<AsyncRequest> req_0 = fs.request(low_prio, [&](Response) {
+    // First regular request.
+    Resource regular1{Resource::Unknown, "http://127.0.0.1:3000/load/1"};
+    std::unique_ptr<AsyncRequest> req_0 = fs.request(regular1, [&](Response) {
         response_counter++;
         req_0.reset();
+    });
+
+    // Low priority request that will be queued and should be requested last.
+    Resource low_prio{Resource::Unknown, "http://127.0.0.1:3000/load/2"};
+    low_prio.setPriority(Resource::Priority::Low);
+    std::unique_ptr<AsyncRequest> req_1 = fs.request(low_prio, [&](Response) {
+        response_counter++;
+        req_1.reset();
         EXPECT_EQ(response_counter, NUM_REQUESTS); // make sure this is responded last
         loop.stop();
     });
 
-    // requesting two "regular" resources
-    Resource regular1{ Resource::Unknown, "http://127.0.0.1:3000/load/2" };
-    std::unique_ptr<AsyncRequest> req_1 = fs.request(regular1, [&](Response) {
-        response_counter++;
-        req_1.reset();
-    });
+    // Second regular priority request that should de-preoritize low priority request.
     Resource regular2{ Resource::Unknown, "http://127.0.0.1:3000/load/3" };
     std::unique_ptr<AsyncRequest> req_2 = fs.request(regular2, [&](Response) {
         response_counter++;
@@ -472,8 +490,7 @@ TEST(OnlineFileSource, TEST_REQUIRES_SERVER(LowHighPriorityRequestsMany)) {
     int correct_low = 0;
     int correct_regular = 0;
 
-
-    fs.setMaximumConcurrentRequests(1);
+    fs.setProperty("max-concurrent-requests", 1u);
 
     NetworkStatus::Set(NetworkStatus::Status::Offline);
 
@@ -524,11 +541,12 @@ TEST(OnlineFileSource, TEST_REQUIRES_SERVER(MaximumConcurrentRequests)) {
     util::RunLoop loop;
     OnlineFileSource fs;
 
-    ASSERT_EQ(fs.getMaximumConcurrentRequests(), 20u);
+    ASSERT_EQ(*fs.getProperty("max-concurrent-requests").getUint(), 20u);
 
-    fs.setMaximumConcurrentRequests(10);
-    ASSERT_EQ(fs.getMaximumConcurrentRequests(), 10u);
+    fs.setProperty("max-concurrent-requests", 10u);
+    ASSERT_EQ(*fs.getProperty("max-concurrent-requests").getUint(), 10u);
 }
+
 TEST(OnlineFileSource, TEST_REQUIRES_SERVER(RequestSameUrlMultipleTimes)) {
     util::RunLoop loop;
     OnlineFileSource fs;
