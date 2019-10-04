@@ -10,9 +10,9 @@
 
 namespace mbgl {
 
-class DatabaseFileSource::Impl {
+class DatabaseFileSourceThread {
 public:
-    Impl(std::shared_ptr<FileSource> onlineFileSource_, std::string cachePath)
+    DatabaseFileSourceThread(std::shared_ptr<FileSource> onlineFileSource_, std::string cachePath)
         : db(std::make_unique<OfflineDatabase>(cachePath)), onlineFileSource(onlineFileSource_) {}
 
     void request(const Resource& resource, ActorRef<FileSourceRequest> req) {
@@ -128,10 +128,21 @@ private:
     std::shared_ptr<FileSource> onlineFileSource;
 };
 
+class DatabaseFileSource::Impl {
+public:
+    Impl(std::shared_ptr<FileSource> onlineFileSource, const std::string& cachePath) : thread(std::make_unique<util::Thread<DatabaseFileSourceThread>>(
+          "DatabaseFileSource", std::move(onlineFileSource), cachePath)) {}
+
+    ActorRef<DatabaseFileSourceThread> actor() const {
+        return thread->actor();
+    }
+
+private:
+    const std::unique_ptr<util::Thread<DatabaseFileSourceThread>> thread;
+};
+
 DatabaseFileSource::DatabaseFileSource(const ResourceOptions& options)
-    : impl(std::make_unique<util::Thread<Impl>>(
-          "DatabaseFileSource",
-          FileSourceManager::get()->getFileSource(FileSourceType::Network, options),
+    : impl(std::make_unique<Impl>(FileSourceManager::get()->getFileSource(FileSourceType::Network, options),
           options.cachePath())) {}
 
 DatabaseFileSource::~DatabaseFileSource() = default;
@@ -139,7 +150,7 @@ DatabaseFileSource::~DatabaseFileSource() = default;
 std::unique_ptr<AsyncRequest> DatabaseFileSource::request(const Resource& resource, Callback callback) {
     auto req = std::make_unique<FileSourceRequest>(std::move(callback));
 
-    impl->actor().invoke(&Impl::request, resource, req->actor());
+    impl->actor().invoke(&DatabaseFileSourceThread::request, resource, req->actor());
 
     return std::move(req);
 }
@@ -156,78 +167,78 @@ bool DatabaseFileSource::canRequest(const Resource& resource) const {
 
 void DatabaseFileSource::setResourceCachePath(const std::string& path,
                                               optional<ActorRef<PathChangeCallback>> callback) {
-    impl->actor().invoke(&Impl::setResourceCachePath, path, std::move(callback));
+    impl->actor().invoke(&DatabaseFileSourceThread::setResourceCachePath, path, std::move(callback));
 }
 
 void DatabaseFileSource::resetDatabase(std::function<void(std::exception_ptr)> callback) {
-    impl->actor().invoke(&Impl::resetDatabase, std::move(callback));
+    impl->actor().invoke(&DatabaseFileSourceThread::resetDatabase, std::move(callback));
 }
 
 void DatabaseFileSource::put(const Resource& resource, const Response& response) {
-    impl->actor().invoke(&Impl::put, resource, response);
+    impl->actor().invoke(&DatabaseFileSourceThread::put, resource, response);
 }
 
 void DatabaseFileSource::invalidateAmbientCache(std::function<void(std::exception_ptr)> callback) {
-    impl->actor().invoke(&Impl::invalidateAmbientCache, std::move(callback));
+    impl->actor().invoke(&DatabaseFileSourceThread::invalidateAmbientCache, std::move(callback));
 }
 
 void DatabaseFileSource::clearAmbientCache(std::function<void(std::exception_ptr)> callback) {
-    impl->actor().invoke(&Impl::clearAmbientCache, std::move(callback));
+    impl->actor().invoke(&DatabaseFileSourceThread::clearAmbientCache, std::move(callback));
 }
 
 void DatabaseFileSource::setMaximumAmbientCacheSize(uint64_t size, std::function<void(std::exception_ptr)> callback) {
-    impl->actor().invoke(&Impl::setMaximumAmbientCacheSize, size, std::move(callback));
+    impl->actor().invoke(&DatabaseFileSourceThread::setMaximumAmbientCacheSize, size, std::move(callback));
 }
 
 void DatabaseFileSource::listOfflineRegions(
     std::function<void(expected<OfflineRegions, std::exception_ptr>)> callback) {
-    impl->actor().invoke(&Impl::listRegions, callback);
+    impl->actor().invoke(&DatabaseFileSourceThread::listRegions, callback);
 }
 
 void DatabaseFileSource::createOfflineRegion(
     const OfflineRegionDefinition& definition,
     const OfflineRegionMetadata& metadata,
     std::function<void(expected<OfflineRegion, std::exception_ptr>)> callback) {
-    impl->actor().invoke(&Impl::createRegion, definition, metadata, callback);
+    impl->actor().invoke(&DatabaseFileSourceThread::createRegion, definition, metadata, callback);
 }
 
 void DatabaseFileSource::mergeOfflineRegions(
     const std::string& sideDatabasePath, std::function<void(expected<OfflineRegions, std::exception_ptr>)> callback) {
-    impl->actor().invoke(&Impl::mergeOfflineRegions, sideDatabasePath, callback);
+    impl->actor().invoke(&DatabaseFileSourceThread::mergeOfflineRegions, sideDatabasePath, callback);
 }
 
 void DatabaseFileSource::updateOfflineMetadata(
     const int64_t regionID,
     const OfflineRegionMetadata& metadata,
     std::function<void(expected<OfflineRegionMetadata, std::exception_ptr>)> callback) {
-    impl->actor().invoke(&Impl::updateMetadata, regionID, metadata, callback);
+    impl->actor().invoke(&DatabaseFileSourceThread::updateMetadata, regionID, metadata, callback);
 }
 
 void DatabaseFileSource::deleteOfflineRegion(OfflineRegion region, std::function<void(std::exception_ptr)> callback) {
-    impl->actor().invoke(&Impl::deleteRegion, std::move(region), callback);
+    impl->actor().invoke(&DatabaseFileSourceThread::deleteRegion, std::move(region), callback);
 }
 
 void DatabaseFileSource::invalidateOfflineRegion(OfflineRegion& region,
                                                  std::function<void(std::exception_ptr)> callback) {
-    impl->actor().invoke(&Impl::invalidateRegion, region.getID(), callback);
+    impl->actor().invoke(&DatabaseFileSourceThread::invalidateRegion, region.getID(), callback);
 }
 
 void DatabaseFileSource::setOfflineRegionObserver(OfflineRegion& region,
                                                   std::unique_ptr<OfflineRegionObserver> observer) {
-    impl->actor().invoke(&Impl::setRegionObserver, region.getID(), std::move(observer));
+    impl->actor().invoke(&DatabaseFileSourceThread::setRegionObserver, region.getID(), std::move(observer));
 }
 
 void DatabaseFileSource::setOfflineRegionDownloadState(OfflineRegion& region, OfflineRegionDownloadState state) {
-    impl->actor().invoke(&Impl::setRegionDownloadState, region.getID(), state);
+    impl->actor().invoke(&DatabaseFileSourceThread::setRegionDownloadState, region.getID(), state);
 }
 
 void DatabaseFileSource::getOfflineRegionStatus(
     OfflineRegion& region, std::function<void(expected<OfflineRegionStatus, std::exception_ptr>)> callback) const {
-    impl->actor().invoke(&Impl::getRegionStatus, region.getID(), callback);
+    impl->actor().invoke(&DatabaseFileSourceThread::getRegionStatus, region.getID(), callback);
 }
 
 void DatabaseFileSource::setOfflineMapboxTileCountLimit(uint64_t limit) const {
-    impl->actor().invoke(&Impl::setOfflineMapboxTileCountLimit, limit);
+    impl->actor().invoke(&DatabaseFileSourceThread::setOfflineMapboxTileCountLimit, limit);
 }
 
 } // namespace mbgl

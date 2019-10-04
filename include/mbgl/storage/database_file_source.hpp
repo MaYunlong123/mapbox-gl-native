@@ -8,14 +8,10 @@
 
 namespace mbgl {
 
-namespace util {
-template <typename T>
-class Thread;
-} // namespace util
-
 class ResourceOptions;
 using PathChangeCallback = std::function<void()>;
 
+// TODO: Split DatabaseFileSource into Ambient cache and Database interfaces.
 class DatabaseFileSource : public FileSource {
 public:
     explicit DatabaseFileSource(const ResourceOptions& options);
@@ -56,7 +52,7 @@ public:
 
 private:
     class Impl;
-    const std::unique_ptr<util::Thread<Impl>> impl;
+    const std::unique_ptr<Impl> impl;
 };
 
 } // namespace mbgl
