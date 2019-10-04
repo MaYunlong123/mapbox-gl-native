@@ -23,32 +23,32 @@ public:
     bool canRequest(const Resource&) const override;
 
     // Methods common to ambient cache and offline database
-    void setResourceCachePath(const std::string&, optional<ActorRef<PathChangeCallback>>);
-    void resetDatabase(std::function<void(std::exception_ptr)>);
+    virtual void setResourceCachePath(const std::string&, optional<ActorRef<PathChangeCallback>>);
+    virtual void resetDatabase(std::function<void(std::exception_ptr)>);
 
     // Ambient cache
-    void put(const Resource&, const Response&);
-    void invalidateAmbientCache(std::function<void(std::exception_ptr)>);
-    void clearAmbientCache(std::function<void(std::exception_ptr)>);
-    void setMaximumAmbientCacheSize(uint64_t size, std::function<void(std::exception_ptr)> callback);
+    virtual void put(const Resource&, const Response&);
+    virtual void invalidateAmbientCache(std::function<void(std::exception_ptr)>);
+    virtual void clearAmbientCache(std::function<void(std::exception_ptr)>);
+    virtual void setMaximumAmbientCacheSize(uint64_t size, std::function<void(std::exception_ptr)> callback);
 
     // Offline
-    void listOfflineRegions(std::function<void(expected<OfflineRegions, std::exception_ptr>)>);
-    void createOfflineRegion(const OfflineRegionDefinition& definition,
-                             const OfflineRegionMetadata& metadata,
-                             std::function<void(expected<OfflineRegion, std::exception_ptr>)>);
-    void updateOfflineMetadata(const int64_t regionID,
-                               const OfflineRegionMetadata& metadata,
-                               std::function<void(expected<OfflineRegionMetadata, std::exception_ptr>)>);
-    void setOfflineRegionObserver(OfflineRegion&, std::unique_ptr<OfflineRegionObserver>);
-    void setOfflineRegionDownloadState(OfflineRegion&, OfflineRegionDownloadState);
-    void getOfflineRegionStatus(OfflineRegion&,
-                                std::function<void(expected<OfflineRegionStatus, std::exception_ptr>)>) const;
-    void mergeOfflineRegions(const std::string& sideDatabasePath,
-                             std::function<void(expected<OfflineRegions, std::exception_ptr>)>);
-    void deleteOfflineRegion(OfflineRegion, std::function<void(std::exception_ptr)>);
-    void invalidateOfflineRegion(OfflineRegion&, std::function<void(std::exception_ptr)>);
-    void setOfflineMapboxTileCountLimit(uint64_t) const;
+    virtual void listOfflineRegions(std::function<void(expected<OfflineRegions, std::exception_ptr>)>);
+    virtual void createOfflineRegion(const OfflineRegionDefinition& definition,
+                                     const OfflineRegionMetadata& metadata,
+                                     std::function<void(expected<OfflineRegion, std::exception_ptr>)>);
+    virtual void updateOfflineMetadata(const int64_t regionID,
+                                       const OfflineRegionMetadata& metadata,
+                                       std::function<void(expected<OfflineRegionMetadata, std::exception_ptr>)>);
+    virtual void setOfflineRegionObserver(OfflineRegion&, std::unique_ptr<OfflineRegionObserver>);
+    virtual void setOfflineRegionDownloadState(OfflineRegion&, OfflineRegionDownloadState);
+    virtual void getOfflineRegionStatus(OfflineRegion&,
+                                        std::function<void(expected<OfflineRegionStatus, std::exception_ptr>)>) const;
+    virtual void mergeOfflineRegions(const std::string& sideDatabasePath,
+                                     std::function<void(expected<OfflineRegions, std::exception_ptr>)>);
+    virtual void deleteOfflineRegion(OfflineRegion, std::function<void(std::exception_ptr)>);
+    virtual void invalidateOfflineRegion(OfflineRegion&, std::function<void(std::exception_ptr)>);
+    virtual void setOfflineMapboxTileCountLimit(uint64_t) const;
 
 private:
     class Impl;

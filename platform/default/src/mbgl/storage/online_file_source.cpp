@@ -551,9 +551,7 @@ void OnlineFileRequest::onCancel(std::function<void()> callback_) {
     cancelCallback = std::move(callback_);
 }
 
-OnlineFileSource::OnlineFileSource()
-    : impl(std::make_unique<Impl>()) {
-}
+OnlineFileSource::OnlineFileSource() : impl(std::make_unique<Impl>()) {}
 
 OnlineFileSource::~OnlineFileSource() = default;
 
@@ -561,30 +559,31 @@ std::unique_ptr<AsyncRequest> OnlineFileSource::request(const Resource& resource
     Resource res = resource;
 
     switch (resource.kind) {
-    case Resource::Kind::Unknown:
-    case Resource::Kind::Image:
-        break;
+        case Resource::Kind::Unknown:
+        case Resource::Kind::Image:
+            break;
 
-    case Resource::Kind::Style:
-        res.url = mbgl::util::mapbox::normalizeStyleURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
-        break;
+        case Resource::Kind::Style:
+            res.url =
+                mbgl::util::mapbox::normalizeStyleURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
+            break;
 
-    case Resource::Kind::Source:
-        res.url = util::mapbox::normalizeSourceURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
-        break;
+        case Resource::Kind::Source:
+            res.url = util::mapbox::normalizeSourceURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
+            break;
 
-    case Resource::Kind::Glyphs:
-        res.url = util::mapbox::normalizeGlyphsURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
-        break;
+        case Resource::Kind::Glyphs:
+            res.url = util::mapbox::normalizeGlyphsURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
+            break;
 
-    case Resource::Kind::SpriteImage:
-    case Resource::Kind::SpriteJSON:
-        res.url = util::mapbox::normalizeSpriteURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
-        break;
+        case Resource::Kind::SpriteImage:
+        case Resource::Kind::SpriteJSON:
+            res.url = util::mapbox::normalizeSpriteURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
+            break;
 
-    case Resource::Kind::Tile:
-        res.url = util::mapbox::normalizeTileURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
-        break;
+        case Resource::Kind::Tile:
+            res.url = util::mapbox::normalizeTileURL(impl->getAPIBaseURL(), resource.url, impl->getAccessToken());
+            break;
     }
 
     return impl->request(std::move(callback), std::move(res));
@@ -611,7 +610,7 @@ void OnlineFileSource::setProperty(const std::string& key, const mapbox::base::V
         impl->setAPIBaseURL(value);
     } else if (key == MAX_CONCURRENT_REQUESTS_KEY) {
         impl->setMaximumConcurrentRequests(value);
-    } else if(key == ONLINE_STATUS_KEY) {
+    } else if (key == ONLINE_STATUS_KEY) {
         // For testing only
         if (auto* boolValue = value.getBool()) {
             impl->setOnlineStatus(*boolValue);

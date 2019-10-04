@@ -130,12 +130,11 @@ private:
 
 class DatabaseFileSource::Impl {
 public:
-    Impl(std::shared_ptr<FileSource> onlineFileSource, const std::string& cachePath) : thread(std::make_unique<util::Thread<DatabaseFileSourceThread>>(
-          "DatabaseFileSource", std::move(onlineFileSource), cachePath)) {}
+    Impl(std::shared_ptr<FileSource> onlineFileSource, const std::string& cachePath)
+        : thread(std::make_unique<util::Thread<DatabaseFileSourceThread>>(
+              "DatabaseFileSource", std::move(onlineFileSource), cachePath)) {}
 
-    ActorRef<DatabaseFileSourceThread> actor() const {
-        return thread->actor();
-    }
+    ActorRef<DatabaseFileSourceThread> actor() const { return thread->actor(); }
 
 private:
     const std::unique_ptr<util::Thread<DatabaseFileSourceThread>> thread;
@@ -143,7 +142,7 @@ private:
 
 DatabaseFileSource::DatabaseFileSource(const ResourceOptions& options)
     : impl(std::make_unique<Impl>(FileSourceManager::get()->getFileSource(FileSourceType::Network, options),
-          options.cachePath())) {}
+                                  options.cachePath())) {}
 
 DatabaseFileSource::~DatabaseFileSource() = default;
 

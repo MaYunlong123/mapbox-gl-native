@@ -75,7 +75,7 @@ public:
     /*
      * Generic property setter / getter methods.
      */
-    virtual void setProperty(const std::string&, const mapbox::base::Value&) {};
+    virtual void setProperty(const std::string&, const mapbox::base::Value&){};
     virtual mapbox::base::Value getProperty(const std::string&) const { return {}; };
 
 protected:

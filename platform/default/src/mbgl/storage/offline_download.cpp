@@ -92,10 +92,7 @@ OfflineDownload::OfflineDownload(int64_t id_,
                                  const OfflineRegionDefinition& definition_,
                                  OfflineDatabase& offlineDatabase_,
                                  FileSource& onlineFileSource_)
-    : id(id_),
-      definition(definition_),
-      offlineDatabase(offlineDatabase_),
-      onlineFileSource(onlineFileSource_) {
+    : id(id_), definition(definition_), offlineDatabase(offlineDatabase_), onlineFileSource(onlineFileSource_) {
     setObserver(nullptr);
 }
 

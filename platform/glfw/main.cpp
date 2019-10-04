@@ -105,7 +105,8 @@ int main(int argc, char *argv[]) {
     mbgl::ResourceOptions resourceOptions;
     resourceOptions.withCachePath(cacheDB).withAccessToken(token);
 
-    auto onlineFileSource = mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::Network, resourceOptions);
+    auto onlineFileSource =
+        mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::Network, resourceOptions);
     if (!settings.online) {
         if (onlineFileSource) {
             onlineFileSource->setProperty("online-status", false);

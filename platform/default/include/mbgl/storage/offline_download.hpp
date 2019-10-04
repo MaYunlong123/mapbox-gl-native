@@ -1,8 +1,8 @@
 #pragma once
 
+#include <mbgl/storage/file_source.hpp>
 #include <mbgl/storage/offline.hpp>
 #include <mbgl/storage/resource.hpp>
-#include <mbgl/storage/file_source.hpp>
 
 #include <list>
 #include <unordered_set>
