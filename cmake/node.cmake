@@ -30,6 +30,7 @@ add_node_module(mbgl-node
 )
 
 target_sources(mbgl-node INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/platform/node/src/node_file_source_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platform/node/src/node_mapbox_gl_native.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platform/node/src/node_mapbox_gl_native.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platform/node/src/node_logging.hpp

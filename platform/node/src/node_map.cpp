@@ -20,24 +20,17 @@
 #include <mbgl/style/layers/raster_layer.hpp>
 #include <mbgl/style/layers/symbol_layer.hpp>
 
-#include <mbgl/storage/resource_options.hpp>
-#include <mbgl/style/style.hpp>
-#include <mbgl/style/image.hpp>
-#include <mbgl/style/light.hpp>
 #include <mbgl/map/map.hpp>
 #include <mbgl/map/map_observer.hpp>
+#include <mbgl/storage/resource_options.hpp>
+#include <mbgl/style/image.hpp>
+#include <mbgl/style/light.hpp>
+#include <mbgl/style/style.hpp>
+#include <mbgl/util/async_request.hpp>
 #include <mbgl/util/exception.hpp>
 #include <mbgl/util/premultiply.hpp>
 
 #include <unistd.h>
-
-namespace mbgl {
-
-std::shared_ptr<FileSource> FileSource::createPlatformFileSource(const ResourceOptions& options) {
-    return std::make_shared<node_mbgl::NodeFileSource>(reinterpret_cast<node_mbgl::NodeMap*>(options.platformContext()));
-}
-
-} // namespace mbgl
 
 namespace node_mbgl {
 
@@ -1485,6 +1478,10 @@ std::unique_ptr<mbgl::AsyncRequest> NodeFileSource::request(const mbgl::Resource
     Nan::NewInstance(Nan::New(node_mbgl::NodeRequest::constructor), 5, argv).ToLocalChecked();
 
     return asyncRequest;
+}
+
+bool NodeFileSource::canRequest(const mbgl::Resource&) const {
+    return true;
 }
 
 } // namespace node_mbgl
