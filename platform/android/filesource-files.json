@@ -10,6 +10,7 @@
         "platform/android/src/offline/offline_region_definition.cpp",
         "platform/android/src/offline/offline_region_error.cpp",
         "platform/android/src/offline/offline_region_status.cpp",
+        "platform/default/src/mbgl/storage/file_source_manager.cpp",
         "platform/default/src/mbgl/storage/sqlite3.cpp"
     ],
     "public_headers": {},

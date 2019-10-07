@@ -22,7 +22,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Holds a central reference to the core's DefaultFileSource for as long as
+ * Holds a central reference to the core's FileSource instances for as long as
  * there are active mapviews / offline managers
  */
 public class FileSource {

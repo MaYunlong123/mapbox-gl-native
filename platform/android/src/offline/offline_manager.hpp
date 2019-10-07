@@ -12,8 +12,6 @@
 
 namespace mbgl {
 
-class DefaultFileSource;
-
 namespace android {
 
 class OfflineManager {
@@ -102,7 +100,7 @@ public:
     void setMaximumAmbientCacheSize(jni::JNIEnv&, const jni::jlong size, const jni::Object<FileSourceCallback>& callback_);
 
 private:
-    std::shared_ptr<mbgl::DefaultFileSource> fileSource;
+    std::shared_ptr<mbgl::DatabaseFileSource> fileSource;
 };
 
 } // namespace android
