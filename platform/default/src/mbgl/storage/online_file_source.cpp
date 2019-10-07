@@ -98,12 +98,10 @@ public:
         if (resourceTransform) {
             // Request the ResourceTransform actor a new url and replace the resource url with the
             // transformed one before proceeding to schedule the request.
-            resourceTransform->invoke(&ResourceTransform::transform,
-                                      request->resource.kind,
-                                      std::move(request->resource.url),
-                                      [ref = request->actor()](const std::string& url) {
-                                          ref.invoke(&OnlineFileRequest::setTransformedURL, url);
-                                      });
+            resourceTransform.transform(
+                request->resource.kind, request->resource.url, [ref = request->actor()](const std::string& url) {
+                    ref.invoke(&OnlineFileRequest::setTransformedURL, url);
+                });
         } else {
             request->schedule();
         }
@@ -169,9 +167,7 @@ public:
 
     bool isActive(OnlineFileRequest* request) { return activeRequests.find(request) != activeRequests.end(); }
 
-    void setResourceTransform(optional<ActorRef<ResourceTransform>> transform) {
-        resourceTransform = std::move(transform);
-    }
+    void setResourceTransform(ResourceTransform transform) { resourceTransform = std::move(transform); }
 
     void setOnlineStatus(bool status) {
         online = status;
@@ -273,7 +269,7 @@ private:
 
     };
 
-    optional<ActorRef<ResourceTransform>> resourceTransform;
+    ResourceTransform resourceTransform;
 
     /**
      * The lifetime of a request is:
@@ -317,7 +313,7 @@ public:
 
     void resume() { thread->resume(); }
 
-    void setResourceTransform(optional<ActorRef<ResourceTransform>> transform) {
+    void setResourceTransform(ResourceTransform transform) {
         thread->actor().invoke(&OnlineFileSourceThread::setResourceTransform, std::move(transform));
     }
 
@@ -634,7 +630,7 @@ mapbox::base::Value OnlineFileSource::getProperty(const std::string& key) const 
     return {};
 }
 
-void OnlineFileSource::setResourceTransform(optional<ActorRef<ResourceTransform>> transform) {
+void OnlineFileSource::setResourceTransform(ResourceTransform transform) {
     impl->setResourceTransform(std::move(transform));
 }
 

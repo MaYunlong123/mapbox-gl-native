@@ -1,6 +1,5 @@
 #pragma once
 
-#include <mbgl/actor/actor_ref.hpp>
 #include <mbgl/storage/file_source.hpp>
 #include <mbgl/util/optional.hpp>
 
@@ -22,9 +21,8 @@ public:
     mapbox::base::Value getProperty(const std::string&) const override;
 
     // OnlineFileSource interface.
-    // TODO: Would be nice to drop it to get uniform interface and get rid of
-    // exposed ActorRef.
-    virtual void setResourceTransform(optional<ActorRef<ResourceTransform>>);
+    // TODO: Would be nice to drop it to get uniform interface.
+    virtual void setResourceTransform(ResourceTransform);
 
 private:
     class Impl;
