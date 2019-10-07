@@ -1,6 +1,7 @@
 #include <mbgl/map/camera.hpp>
 #include <mbgl/map/map_observer.hpp>
 #include <mbgl/renderer/renderer.hpp>
+#include <mbgl/storage/file_source_manager.hpp>
 #include <mbgl/style/conversion/filter.hpp>
 #include <mbgl/style/conversion/layer.hpp>
 #include <mbgl/style/conversion/light.hpp>
@@ -767,6 +768,10 @@ bool TestRunner::runOperations(const std::string& key, TestMetadata& metadata) {
     return runOperations(key, metadata);
 }
 
+TestRunner::TestRunner() {
+    mbgl::FileSourceManager::get()->unRegisterFileSourceFactory(mbgl::FileSourceType::Database);
+}
+
 TestRunner::Impl::Impl(const TestMetadata& metadata)
     : frontend(metadata.size, metadata.pixelRatio),
       map(frontend,
@@ -776,7 +781,7 @@ TestRunner::Impl::Impl(const TestMetadata& metadata)
               .withSize(metadata.size)
               .withPixelRatio(metadata.pixelRatio)
               .withCrossSourceCollisions(metadata.crossSourceCollisions),
-          mbgl::ResourceOptions().withCacheOnlyRequestsSupport(false)) {}
+          mbgl::ResourceOptions()) {}
 
 bool TestRunner::run(TestMetadata& metadata) {
     AllocationIndex::setActive(false);

@@ -9,7 +9,7 @@ struct TestMetadata;
 
 class TestRunner {
 public:
-    TestRunner() = default;
+    TestRunner();
 
     bool run(TestMetadata&);
     void reset();
