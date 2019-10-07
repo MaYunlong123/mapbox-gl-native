@@ -29,10 +29,10 @@ public:
         req.invoke(&FileSourceRequest::setResponse, *offlineResponse);
     }
 
-    void setDatabasePath(const std::string& path, optional<ActorRef<DatabasePathChangeCallback>> callback) {
+    void setDatabasePath(const std::string& path, DatabasePathChangeCallback callback) {
         db->changePath(path);
         if (callback) {
-            callback->invoke(&DatabasePathChangeCallback::operator());
+            callback();
         }
     }
 
@@ -164,8 +164,7 @@ bool DatabaseFileSource::canRequest(const Resource& resource) const {
            resource.url.rfind(mbgl::util::FILE_PROTOCOL, 0) == std::string::npos;
 }
 
-void DatabaseFileSource::setDatabasePath(const std::string& path,
-                                         optional<ActorRef<DatabasePathChangeCallback>> callback) {
+void DatabaseFileSource::setDatabasePath(const std::string& path, DatabasePathChangeCallback callback) {
     impl->actor().invoke(&DatabaseFileSourceThread::setDatabasePath, path, std::move(callback));
 }
 

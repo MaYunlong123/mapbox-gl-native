@@ -1,6 +1,5 @@
 #pragma once
 
-#include <mbgl/actor/actor_ref.hpp>
 #include <mbgl/storage/file_source.hpp>
 #include <mbgl/storage/offline.hpp>
 #include <mbgl/util/expected.hpp>
@@ -27,8 +26,7 @@ public:
     /*
      * Sets path of a database to be used by DatabaseFileSource.
      */
-    // TODO: Remove exposed ActorRef and pass normal std::function callback
-    virtual void setDatabasePath(const std::string&, optional<ActorRef<DatabasePathChangeCallback>>);
+    virtual void setDatabasePath(const std::string&, DatabasePathChangeCallback);
 
     /*
      * Delete existing database and re-initialize.
