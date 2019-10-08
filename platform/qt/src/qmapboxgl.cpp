@@ -7,35 +7,37 @@
 #include "qt_conversion.hpp"
 #include "qt_geojson.hpp"
 
+#include <mbgl/actor/scheduler.hpp>
 #include <mbgl/annotation/annotation.hpp>
 #include <mbgl/map/camera.hpp>
 #include <mbgl/map/map.hpp>
 #include <mbgl/map/map_options.hpp>
 #include <mbgl/math/log2.hpp>
 #include <mbgl/math/minmax.hpp>
-#include <mbgl/style/style.hpp>
-#include <mbgl/style/conversion/layer.hpp>
-#include <mbgl/style/conversion/source.hpp>
+#include <mbgl/renderer/renderer.hpp>
+#include <mbgl/storage/file_source_manager.hpp>
+#include <mbgl/storage/network_status.hpp>
+#include <mbgl/storage/online_file_source.hpp>
+#include <mbgl/storage/resource_options.hpp>
 #include <mbgl/style/conversion/filter.hpp>
 #include <mbgl/style/conversion/geojson.hpp>
+#include <mbgl/style/conversion/layer.hpp>
+#include <mbgl/style/conversion/source.hpp>
 #include <mbgl/style/conversion_impl.hpp>
 #include <mbgl/style/filter.hpp>
-#include <mbgl/style/layers/custom_layer.hpp>
+#include <mbgl/style/image.hpp>
 #include <mbgl/style/layers/background_layer.hpp>
 #include <mbgl/style/layers/circle_layer.hpp>
-#include <mbgl/style/layers/fill_layer.hpp>
+#include <mbgl/style/layers/custom_layer.hpp>
 #include <mbgl/style/layers/fill_extrusion_layer.hpp>
+#include <mbgl/style/layers/fill_layer.hpp>
 #include <mbgl/style/layers/line_layer.hpp>
 #include <mbgl/style/layers/raster_layer.hpp>
 #include <mbgl/style/layers/symbol_layer.hpp>
 #include <mbgl/style/rapidjson_conversion.hpp>
 #include <mbgl/style/sources/geojson_source.hpp>
+#include <mbgl/style/style.hpp>
 #include <mbgl/style/transition_options.hpp>
-#include <mbgl/style/image.hpp>
-#include <mbgl/renderer/renderer.hpp>
-#include <mbgl/storage/default_file_source.hpp>
-#include <mbgl/storage/network_status.hpp>
-#include <mbgl/storage/resource_options.hpp>
 #include <mbgl/util/color.hpp>
 #include <mbgl/util/constants.hpp>
 #include <mbgl/util/geo.hpp>
@@ -44,7 +46,6 @@
 #include <mbgl/util/rapidjson.hpp>
 #include <mbgl/util/run_loop.hpp>
 #include <mbgl/util/traits.hpp>
-#include <mbgl/actor/scheduler.hpp>
 
 #include <QGuiApplication>
 
@@ -1742,13 +1743,21 @@ QMapboxGLPrivate::QMapboxGLPrivate(QMapboxGL *q, const QMapboxGLSettings &settin
                                          resourceOptions);
 
      if (settings.resourceTransform()) {
-         m_resourceTransform = std::make_unique<mbgl::Actor<mbgl::ResourceTransform>>(
+         m_resourceTransform = std::make_unique<mbgl::Actor<mbgl::ResourceTransform::TransformCallback>>(
              *mbgl::Scheduler::GetCurrent(),
-             [callback = settings.resourceTransform()](mbgl::Resource::Kind, const std::string &url_) -> std::string {
-                 return callback(std::move(url_));
+             [callback = settings.resourceTransform()](
+                 mbgl::Resource::Kind, const std::string &url_, mbgl::ResourceTransform::FinishedCallback onFinished) {
+                 onFinished(callback(std::move(url_)));
              });
-         auto fs = mbgl::FileSource::getSharedFileSource(resourceOptions);
-         std::static_pointer_cast<mbgl::DefaultFileSource>(fs)->setResourceTransform(m_resourceTransform->self());
+
+         mbgl::ResourceTransform transform{[actorRef = m_resourceTransform->self()](
+                                               mbgl::Resource::Kind kind,
+                                               const std::string &url,
+                                               mbgl::ResourceTransform::FinishedCallback onFinished) {
+             actorRef.invoke(&mbgl::ResourceTransform::TransformCallback::operator(), kind, url, std::move(onFinished));
+         }};
+         auto fs = mbgl::FileSourceManager::get()->getFileSource(mbgl::FileSourceType::Network, resourceOptions);
+         std::static_pointer_cast<mbgl::OnlineFileSource>(fs)->setResourceTransform(std::move(transform));
      }
 
     // Needs to be Queued to give time to discard redundant draw calls via the `renderQueued` flag.
