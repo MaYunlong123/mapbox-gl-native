@@ -28,6 +28,7 @@ target_sources(
         ${MBGL_ROOT}/platform/node/src/node_expression.hpp
         ${MBGL_ROOT}/platform/node/src/node_feature.cpp
         ${MBGL_ROOT}/platform/node/src/node_feature.hpp
+        ${MBGL_ROOT}/platform/node/src/node_file_source_manager.cpp
         ${MBGL_ROOT}/platform/node/src/node_logging.cpp
         ${MBGL_ROOT}/platform/node/src/node_logging.hpp
         ${MBGL_ROOT}/platform/node/src/node_map.cpp
