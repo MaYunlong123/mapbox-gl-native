@@ -3,6 +3,8 @@ add_executable(
     ${MBGL_ROOT}/render-test/allocation_index.cpp
     ${MBGL_ROOT}/render-test/allocation_index.hpp
     ${MBGL_ROOT}/render-test/filesystem.hpp
+    ${MBGL_ROOT}/render-test/file_source.cpp
+    ${MBGL_ROOT}/render-test/file_source.hpp
     ${MBGL_ROOT}/render-test/main.cpp
     ${MBGL_ROOT}/render-test/metadata.hpp
     ${MBGL_ROOT}/render-test/parser.cpp
