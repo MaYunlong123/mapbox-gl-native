@@ -36,6 +36,7 @@ public:
     virtual ~FileSource() = default;
 
     using Callback = std::function<void (Response)>;
+    using ForwardCallback = std::function<void()>;
 
     // Request a resource. The callback will be called asynchronously, in the same
     // thread as the request was made. This thread must have an active RunLoop. The
@@ -45,7 +46,9 @@ public:
     virtual std::unique_ptr<AsyncRequest> request(const Resource&, Callback) = 0;
 
     // Allows to forward response from one source to another.
-    virtual void forward(const Resource&, const Response&) {}
+    // Optionally, callback can be provided to receive notification for forward
+    // operation.
+    virtual void forward(const Resource&, const Response&, ForwardCallback = {}) {}
 
     // When a file source supports consulting a local cache only, it must return true.
     // Cache-only requests are requests that aren't as urgent, but could be useful, e.g.

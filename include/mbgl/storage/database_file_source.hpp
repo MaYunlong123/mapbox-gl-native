@@ -18,7 +18,7 @@ public:
 
     // FileSource overrides
     std::unique_ptr<AsyncRequest> request(const Resource&, Callback) override;
-    void forward(const Resource&, const Response&) override;
+    void forward(const Resource&, const Response&, ForwardCallback) override;
     bool canRequest(const Resource&) const override;
 
     // Methods common to Ambient cache and Offline functionality

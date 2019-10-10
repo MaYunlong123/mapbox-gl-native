@@ -36,6 +36,13 @@ public:
         }
     }
 
+    void forward(const Resource& resource, const Response& response, FileSource::ForwardCallback callback) {
+        db->put(resource, response);
+        if (callback) {
+            callback();
+        }
+    }
+
     void resetDatabase(std::function<void(std::exception_ptr)> callback) { callback(db->resetDatabase()); }
 
     void put(const Resource& resource, const Response& response) { db->put(resource, response); }
@@ -148,14 +155,16 @@ DatabaseFileSource::~DatabaseFileSource() = default;
 
 std::unique_ptr<AsyncRequest> DatabaseFileSource::request(const Resource& resource, Callback callback) {
     auto req = std::make_unique<FileSourceRequest>(std::move(callback));
-
     impl->actor().invoke(&DatabaseFileSourceThread::request, resource, req->actor());
-
     return std::move(req);
 }
 
-void DatabaseFileSource::forward(const Resource& res, const Response& response) {
-    put(res, response);
+void DatabaseFileSource::forward(const Resource& res, const Response& response, ForwardCallback callback) {
+    ForwardCallback wrapper;
+    if (callback) {
+        wrapper = Scheduler::GetCurrent()->bindOnce(std::move(callback));
+    }
+    impl->actor().invoke(&DatabaseFileSourceThread::forward, res, response, std::move(wrapper));
 }
 
 bool DatabaseFileSource::canRequest(const Resource& resource) const {
