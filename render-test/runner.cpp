@@ -177,7 +177,7 @@ bool TestRunner::checkRenderTestResults(mbgl::PremultipliedImage&& actualImage, 
 #if !TEST_READ_ONLY
     if (getenv("UPDATE_PLATFORM")) {
         mbgl::filesystem::create_directories(expectations.back());
-        mbgl::util::write_file(expectations.back().string() + "/expected.png", mbgl::encodePNG(actualImage));
+        mbgl::util::write_file(expectations.back()/"expected.png", mbgl::encodePNG(actualImage));
         return true;
     } else if (getenv("UPDATE_DEFAULT")) {
         mbgl::util::write_file(base + "/expected.png", mbgl::encodePNG(actualImage));
@@ -185,7 +185,7 @@ bool TestRunner::checkRenderTestResults(mbgl::PremultipliedImage&& actualImage, 
     } else if (getenv("UPDATE_METRICS")) {
         if (!metadata.metrics.isEmpty()) {
             mbgl::filesystem::create_directories(expectations.back());
-            mbgl::util::write_file(expectations.back().string() + "/metrics.json", serializeMetrics(metadata.metrics));
+            mbgl::util::write_file(expectations.back()/"metrics.json", serializeMetrics(metadata.metrics));
             return true;
         }
     }

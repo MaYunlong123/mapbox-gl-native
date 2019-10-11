@@ -55,7 +55,7 @@ add_test(
     NAME mbgl-render-test-probes
     COMMAND
         mbgl-render-test
-        render-tests
+        tests
         --recycle-map
         --shuffle
         --seed=${MBGL_RENDER_TEST_SEED}
