@@ -39,14 +39,27 @@ struct FileSizeProbe {
     uintmax_t size;
 };
 
+inline std::tuple<bool, float> checkValue(float expected, float actual, float tolerance) {
+    float delta = expected * tolerance;
+    assert(delta >= 0.0f);
+    return std::make_tuple(std::abs(expected - actual) <= delta, delta);
+}
+
 struct MemoryProbe {
     MemoryProbe() = default;
-    MemoryProbe(size_t peak_, size_t allocations_)
-        : peak(peak_)
-        , allocations(allocations_) {}
+    MemoryProbe(size_t peak_, size_t allocations_) : peak(peak_), allocations(allocations_), tolerance(0.0f) {}
 
     size_t peak;
     size_t allocations;
+    float tolerance;
+
+    static std::tuple<bool, float> checkPeak(const MemoryProbe& expected, const MemoryProbe& actual) {
+        return checkValue(expected.peak, actual.peak, actual.tolerance);
+    }
+
+    static std::tuple<bool, float> checkAllocations(const MemoryProbe& expected, const MemoryProbe& actual) {
+        return checkValue(expected.allocations, actual.allocations, actual.tolerance);
+    }
 };
 
 class TestMetrics {
