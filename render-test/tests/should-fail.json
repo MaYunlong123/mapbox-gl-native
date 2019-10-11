@@ -1,5 +1,7 @@
 {
   "tests/filesize/fail-size-is-over": "Should fail, size is bigger than expected.",
   "tests/filesize/fail-size-is-under": "Should fail, size is smaller than expected.",
-  "tests/filesize/fail-file-doesnt-match": "Should fail, file not found."
+  "tests/filesize/fail-file-doesnt-match": "Should fail, file not found.",
+  "tests/memory/fail-memory-size-is-too-big": "Should fail, memory size is bigger than expected.",
+  "tests/memory/fail-memory-size-is-too-small": "Should fail, memory size is smaller than expected."
 }
